@@ -1,0 +1,238 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <algorithm>
+#include <map>
+
+using namespace std;
+
+enum class Side { Buy, Sell };
+
+///////////////////// Creating the structure of the order (input file)/////////////////////////////
+class Order {
+public:
+    string Client_Order_ID;
+    string Instrument;
+    int side;
+    int Quantity;
+    double Price;
+};
+
+///////////////////////// Order book (BUY) ///////////////////////
+class Order_Book {
+public:
+    string id;
+    int qty;
+    int price;
+};
+
+////////////////////////// Creating structure of the execution report /////////////////////////
+class Execution {
+public:
+    string client_Or_ID;
+    string order_ID;
+    string instrument;
+    int side;
+    double price;
+    int quantity;
+    string status;
+    string reason;
+};
+
+class Flower_Trading {
+public:
+    vector<string> instrument_list = { "Rose", "Lavender", "Lotus", "Tulip", "Orchid" };
+    vector<Order*> orders;
+    vector<Execution*> report;
+
+    void Read_CSV(const string& csv_path) {
+        ifstream file(csv_path);
+        if (!file.is_open()) {
+            cout << "Failed to open the file" << endl;
+            return;
+        }
+
+        string line, field;
+        getline(file, line);
+
+        while (getline(file, line)) {
+            istringstream iss(line);
+            Order* order = new Order;
+
+            getline(iss, order->Client_Order_ID, ',');
+            getline(iss, order->Instrument, ',');
+
+            getline(iss, field, ',');
+            order->side = stoi(field);
+
+            getline(iss, field, ',');
+            order->Quantity = stoi(field);
+
+            getline(iss, field, ',');
+            order->Price = stod(field);
+
+            orders.push_back(order);
+        }
+
+        file.close();
+    }
+
+    bool is_Valid_Order(const Order* order, Execution* transaction) {
+        if (!std::count(instrument_list.begin(), instrument_list.end(), order->Instrument)) {
+            transaction->status = "Rejected";
+            transaction->reason = "Instrument is not supported";
+            return false;
+        }
+        else if (order->Price < 0) {
+            transaction->status = "Rejected";
+            transaction->reason = "Invalid price";
+            return false;
+        }
+        else if (order->Quantity < 10 || order->Quantity > 1000) {
+            transaction->status = "Rejected";
+            transaction->reason = "Quantity is out of the range.";
+            return false;
+        }
+        else if (order->Quantity % 10 != 0) {
+            transaction->status = "Rejected";
+            transaction->reason = "Quantity must be a multiple of 10.";
+            return false;
+        }
+        else {
+            transaction->status = "New";
+            transaction->reason = "";
+            return true;
+        }
+    }
+
+    Execution* GetTransactionByID(const string& id) {
+        for (Execution* execution : report) {
+            if (execution->client_Or_ID == id) {
+                return execution;
+            }
+        }
+        return nullptr;
+    }
+
+    void Process_Order() {
+        map<string, vector<Order_Book*>> Buy_Orders;
+        map<string, vector<Order_Book*>> Sell_Orders;
+
+        int i = 1;
+        auto ascending = [](Order_Book* a, Order_Book* b) {
+			return a->price < b->price;
+		};
+
+		auto descending = [](Order_Book* a, Order_Book* b) {
+			return a->price < b->price;
+		};
+
+
+        for (const Order* order : orders) {
+            Execution* transaction = new Execution;
+
+            bool valid_order = is_Valid_Order(order, transaction);
+
+            if (!valid_order) {
+                report.push_back(transaction);
+                continue;
+            }
+
+            Order_Book* new_order = new Order_Book;
+            new_order->id = order->Client_Order_ID;
+            new_order->qty = order->Quantity;
+            new_order->price = order->Price;
+
+            if (order->side == static_cast<int>(Side::Buy)) {
+                Buy_Orders[order->Instrument].push_back(new_order);
+            }
+            else if (order->side == static_cast<int>(Side::Sell)) {
+                Sell_Orders[order->Instrument].push_back(new_order);
+            }
+
+            transaction->client_Or_ID = order->Client_Order_ID;
+            transaction->order_ID = "ord" + to_string(i);
+            transaction->instrument = order->Instrument;
+            transaction->price = order->Price;
+            transaction->quantity = order->Quantity;
+            transaction->status = "New";
+            report.push_back(transaction);
+
+            i++;
+        }
+
+        for (auto& instrument_orders : Buy_Orders) {
+            string instrument = instrument_orders.first;
+            vector<Order_Book*>& buy_orders = instrument_orders.second;
+            vector<Order_Book*>& sell_orders = Sell_Orders[instrument];
+
+            sort(buy_orders.begin(), buy_orders.end(), descending);
+            sort(sell_orders.begin(), sell_orders.end(), ascending);
+
+            for (Order_Book* buy_order : buy_orders) {
+                for (Order_Book* sell_order : sell_orders) {
+                    if (sell_order->price >= buy_order->price) {
+                        int match_qty = min(sell_order->qty, buy_order->qty);
+
+                        Execution* buy_transaction = GetTransactionByID(buy_order->id);
+                        Execution* sell_transaction = GetTransactionByID(sell_order->id);
+
+                        if (match_qty == sell_order->qty) {
+                            buy_transaction->status = "Fill";
+                            sell_transaction->status = "Fill";
+                            sell_orders.erase(sell_orders.begin());
+                        }
+                        else {
+                            buy_transaction->status = "Partially Fill";
+                            sell_transaction->status = "Partially Fill";
+                            sell_order->qty -= match_qty;
+                        }
+
+                        buy_transaction->quantity = match_qty;
+                        sell_transaction->quantity = match_qty;
+
+                        buy_order->qty -= match_qty;
+
+                        if (buy_order->qty == 0) {
+                            break;
+                        }
+                    }
+                    else {
+                        break;
+                    }
+                }
+
+                if (buy_order->qty > 0) {
+                    Buy_Orders[instrument].push_back(buy_order);
+                }
+            }
+        }
+        for (const Execution*  j: report) {
+			cout << "Client Order ID: " << j->client_Or_ID << "| Order ID: " << j->order_ID << " | Instrument: " << j->instrument
+				<< " | Quantity: " << j->quantity
+				<< " | Price: " << j->price << " | Status: " << j->status << " | Reason: " << j->reason << endl;
+		}
+    }
+
+    ~Flower_Trading() {
+        for (Order* order : orders) {
+            delete order;
+        }
+        orders.clear();
+
+        for (Execution* execution : report) {
+            delete execution;
+        }
+        report.clear();
+    }
+};
+
+int main() {
+    Flower_Trading Trading_app;
+    string File_Path = "C:\\Users\\user\\Desktop\\Gippa\\ex7_1.csv";
+    Trading_app.Read_CSV(File_Path);
+    Trading_app.Process_Order();
+
+    return 0;
+}
