@@ -171,7 +171,7 @@ public:
                 cout << Buy_Book.size() << endl;
                 if (order->Price >= sell_order->price) {
                     matched = true;
-
+                    cout << sell_order->qty << endl;
                     transaction->client_Or_ID = order->Client_Order_ID;
                     transaction->instrument = order->Instrument;  // Set the instrument correctly
                     transaction->price = order->Price; // Set the price correctly
@@ -325,7 +325,9 @@ public:
                         transaction->status = "PFill";
                         transaction->quantity = buy_order->qty; // Set the quantity correctly
                         order->Quantity -= buy_order->qty;
-                        Sell_Book[0]->qty -= buy_order->qty;
+                        Sell_Book.back()->qty -= buy_order->qty;
+
+                        cout << Sell_Book[0]->price << Sell_Book[1]->price << endl;
                         transaction->client_Or_ID = order->Client_Order_ID;
                         transaction->price = order->Price;
                         report.push_back(transaction);
@@ -439,7 +441,7 @@ public:
 
 int main() {
     Flower_Trading Trading_app;
-    string File_Path = "ex2.csv";
+    string File_Path = "ex71.csv";
 
     Trading_app.Read_CSV(File_Path);
     Trading_app.Process_Order();
