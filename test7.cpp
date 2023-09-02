@@ -341,7 +341,7 @@ public:
                         transaction->order_ID = order->Ord_id;
                         transaction->quantity = buy_order->qty; // Set the quantity correctly
                         order->Quantity -= buy_order->qty;
-                        Sell_Book[0]->qty -= buy_order->qty;
+                        Sell_Book.back()->qty -= buy_order->qty;
                         transaction->client_Or_ID = order->Client_Order_ID;
                         transaction->price = order->Price;
                         report.push_back(transaction);
