@@ -212,6 +212,7 @@ public:
                         transaction->status = "Fill";
                         transaction->order_ID= order->Ord_id;
                         sell_order->qty -= order->Quantity;
+                        transaction->price = order->Price;
                         Buy_Book.erase(Buy_Book.begin());
                         report.push_back(transaction);
 
@@ -232,10 +233,11 @@ public:
                         Execution* transaction = new Execution;
                         transaction->client_Or_ID = order->Client_Order_ID;
                         transaction->instrument = order->Instrument;
-                        transaction->status = "Pfill";
+                        transaction->status = "PFill";
                         order->Quantity -= sell_order->qty;
+                        transaction->price = order->Price;
                         transaction->quantity = sell_order->qty;
-                        transaction->order_ID = order->Ord_id; // Set the quantity correctly
+                        transaction->order_ID =order->Ord_id; // Set the quantity correctly
                         Buy_Book[0]->qty -= sell_order->qty;
                         report.push_back(transaction);
 
@@ -245,7 +247,7 @@ public:
                         transaction1->instrument = order->Instrument;  // Set the instrument correctly
                         transaction1->price = order->Price;
                         transaction1->client_Or_ID = sell_order->id;
-                        transaction->order_ID = sell_order->Order_ID;
+                        transaction1->order_ID = sell_order->Order_ID;
                         report.push_back(transaction1);
                         Sell_Book.erase(Sell_Book.begin());
                         matched = true;
@@ -259,7 +261,7 @@ public:
             }
             if (!matched) {
                 // If no match occurred for the current buy order, set status as "New"
-
+                transaction->order_ID = order->Ord_id;;
                 transaction->client_Or_ID = order->Client_Order_ID;
                 transaction->instrument = order->Instrument;  // Set the instrument correctly
                 transaction->price = order->Price; // Set the price correctly
@@ -320,7 +322,7 @@ public:
                         report.push_back(transaction);
 
                         Execution* buy_side = new Execution;
-                        buy_side->status = "Pfill";
+                        buy_side->status = "PFill";
                         buy_side->quantity = order->Quantity;
                         buy_side->instrument = order->Instrument;  // Set the instrument correctly
                         buy_side->price = order->Price;
@@ -370,7 +372,7 @@ public:
                 // If no match occurred for the current buy order, set status as "New"
                 transaction->client_Or_ID = order->Client_Order_ID;
                 //cout << transaction->client_Or_ID;
-                transaction->order_ID = order->Ord_id;;
+                transaction->order_ID = order->Ord_id;
                 transaction->instrument = order->Instrument;  // Set the instrument correctly
                 transaction->price = order->Price; // Set the price correctly
                 transaction->quantity = order->Quantity; // Set the quantity correctly
