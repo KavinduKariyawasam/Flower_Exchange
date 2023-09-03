@@ -138,24 +138,28 @@ public:
             transaction->status = "Rejected";
             transaction->reason = "Instrument is not supported";
             transaction->time = get_time();
+			transaction->side = order->side;
             return true;
         }
         else if (order->Price < 0) {
             transaction->status = "Rejected";
             transaction->reason = "Invalid price";
             transaction->time = get_time();
+			transaction->side = order->side;
             return true;
         }
         else if (order->Quantity < 10 || order->Quantity > 1000) {
             transaction->status = "Rejected";
             transaction->reason = "Quantity is out of the range.";
             transaction->time = get_time();
+			transaction->side = order->side;
             return true;
         }
         else if (order->Quantity % 10 != 0) {
             transaction->status = "Rejected";
             transaction->reason = "Quantity must be a multiple of 10.";
             transaction->time = get_time();
+			transaction->side = order->side;
             return true;
         }
         return false;
@@ -364,7 +368,6 @@ public:
                         report.push_back(sell_side);
 
                         Execution* buy_side = new Execution;
-                        //buy_side->order_ID = "ord" + to_string(i);
                         buy_side->side = 1;
                         buy_side->status = "Fill";
                         buy_side->quantity = buy_order->qty;
@@ -382,7 +385,7 @@ public:
                         break;
                     }
                     else if (order->Quantity < buy_order->qty) {
-                        //cout << "helooooooooooooooo" << endl;
+                        
                         Execution* transaction = new Execution;
                         transaction->side = 2;
                         transaction->instrument = order->Instrument;
@@ -437,11 +440,6 @@ public:
                         buy_side->client_Or_ID = buy_order->id;
                         buy_side->order_ID = buy_order->Order_ID;
                         buy_side->time = get_time();
-
-                        //Buy_Book.erase(Buy_Book.begin());
-
-
-
                         report.push_back(buy_side);
                         matched = true;
                         if (Buy_Book.size() == 1) {
@@ -451,12 +449,6 @@ public:
                             loop_needed = true;
                         }
 
-
-                        //cout << "helloooo" << endl;
-                        //cout << Buy_Book[0]->price << endl;
-                        //////////// &&&&&&&&&&&&&&&&
-                        //break;
-
                     }
 
                 }
@@ -464,12 +456,11 @@ public:
 
 
             }
-            //cout << matched;
+            
             if (matched == 0) {
-                //cout<< matched;
+                
                 // If no match occurred for the current buy order, set status as "New"
                 transaction->client_Or_ID = order->Client_Order_ID;
-                //cout << transaction->client_Or_ID;
                 transaction->order_ID = order->Ord_id;
                 transaction->instrument = order->Instrument;  // Set the instrument correctly
                 transaction->price = order->Price; // Set the price correctly
@@ -493,12 +484,12 @@ public:
         }
 
         // Write headers
-        file << "Client_Order_ID,Order_ID,Instrument,Side,Price,Quantity,Status,Reason,Transaction_Time" << endl;
+        file << "Order_ID,Client_Order_ID,Instrument,Side,Price,Quantity,Status,Reason,Transaction_Time" << endl;
 
         // Write transaction details
         for (const Execution* transaction : report) {
-            file << transaction->client_Or_ID << ","
-                << transaction->order_ID << ","
+            file << transaction->order_ID << ","
+                << transaction->client_Or_ID << ","
                 << transaction->instrument << ","
                 << transaction->side << ","
                 << transaction->price << ","
@@ -532,8 +523,7 @@ public:
             transaction->instrument = order->Instrument;
             transaction->price = order->Price;
             transaction->quantity = order->Quantity;
-            //cout << order->Client_Order_ID << endl;
-            //bool x= is_Valid_Order(order, transaction);
+            
 
             if (is_Invalid_Order(order, transaction)) {
                 report.push_back(transaction);
@@ -584,7 +574,7 @@ public:
 
 int main() {
     Flower_Trading Trading_app;
-    string File_Path = "C:\\Users\\user\\Desktop\\Gippa\\Bigdataset.csv";
+    string File_Path = "C:\\Users\\user\\Desktop\\Gippa\\ex7_1.csv";
 
     Trading_app.Read_CSV(File_Path);
     Trading_app.Process_Order();
