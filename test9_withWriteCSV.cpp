@@ -4,6 +4,8 @@
 #include <vector>
 #include <algorithm>
 #include <map>
+#include <chrono>
+#include <iomanip>
 
 using namespace std;
 
@@ -40,6 +42,7 @@ public:
     int quantity;
     string status;
     string reason;
+    string time;
 };
 
 class Flower_Trading {
@@ -62,6 +65,24 @@ public:
 
     vector<Order_Book*> Buy_Orchid;
     vector<Order_Book*> Sell_Orchid;
+
+    string get_time() {
+        // Get the current time
+        auto currentTime = chrono::system_clock::now();
+        time_t time = chrono::system_clock::to_time_t(currentTime);
+
+        // Convert the time to a tm structure
+        struct tm* tmInfo = localtime(&time);
+
+        // Get the milliseconds
+        auto milliseconds = chrono::duration_cast<chrono::milliseconds>(currentTime.time_since_epoch()) % 1000;
+
+        // Format the time as YYYYMMDD-HHMMSS.sss
+        ostringstream oss;
+        oss << put_time(tmInfo, "%Y%m%d-%H%M%S") << "." << setfill('0') << setw(3) << milliseconds.count();
+
+        return oss.str();
+    }
 
     void Read_CSV(const string& csv_path) {
         ifstream file(csv_path);
@@ -116,21 +137,29 @@ public:
         if (!std::count(instrument_list.begin(), instrument_list.end(), order->Instrument)) {
             transaction->status = "Rejected";
             transaction->reason = "Instrument is not supported";
+            transaction->time = get_time();
+			transaction->side = order->side;
             return true;
         }
         else if (order->Price < 0) {
             transaction->status = "Rejected";
             transaction->reason = "Invalid price";
+            transaction->time = get_time();
+			transaction->side = order->side;
             return true;
         }
         else if (order->Quantity < 10 || order->Quantity > 1000) {
             transaction->status = "Rejected";
             transaction->reason = "Quantity is out of the range.";
+            transaction->time = get_time();
+			transaction->side = order->side;
             return true;
         }
         else if (order->Quantity % 10 != 0) {
             transaction->status = "Rejected";
             transaction->reason = "Quantity must be a multiple of 10.";
+            transaction->time = get_time();
+			transaction->side = order->side;
             return true;
         }
         return false;
@@ -154,7 +183,7 @@ public:
             Rose_b->price = order->Price;
             Rose_b->Order_ID = "ord" + to_string(i);
             Buy_Book.push_back(Rose_b);
-            sort(Buy_Book.begin(), Buy_Book.end(), ascending);
+            //sort(Buy_Book.begin(), Buy_Book.end(), descending);
 
         }
         else { // Sell order
@@ -165,14 +194,24 @@ public:
             Rose_s->Order_ID = "ord" + to_string(i);
             Sell_Book.push_back(Rose_s);
             //cout << Sell_Book.size() << endl;
-            sort(Sell_Book.begin(), Sell_Book.end(), descending);
+            //sort(Sell_Book.begin(), Sell_Book.end(), ascending);
         }
         if (order->side == 1) {
             bool matched = false;
+            bool loop_needed1 = false;
+            sort(Sell_Book.begin(), Sell_Book.end(), ascending);
+			
 
             for (Order_Book* sell_order : Sell_Book) {
-                //cout << Buy_Book.size() << endl;
+
+                if (loop_needed1) {
+                    //cout << Sell_Book.front()->id << endl;
+                    Sell_Book.erase(Sell_Book.begin());
+                    loop_needed1 = false;
+                }
+
                 if (order->Price >= sell_order->price) {
+                    //cout << order->Client_Order_ID << endl;
                     matched = true;
 
                     transaction->client_Or_ID = order->Client_Order_ID;
@@ -180,6 +219,7 @@ public:
                     transaction->price = order->Price; // Set the price correctly
 
                     if (order->Quantity == sell_order->qty) {
+                        //cout << order->Client_Order_ID << endl;
                         //cout << "Yeah i am here" << endl;
                         Execution* transaction = new Execution;
                         transaction->side = 1;
@@ -189,8 +229,10 @@ public:
                         transaction->price = order->Price;
                         transaction->status = "Fill";
                         transaction->order_ID = order->Ord_id;
+                        transaction->time = get_time();
+                        //cout << Sell_Book[0]->Order_ID << endl; 
                         Sell_Book.erase(Sell_Book.begin());
-                        Buy_Book.erase(Buy_Book.begin());
+                        Buy_Book.erase(Buy_Book.end());
                         report.push_back(transaction);
 
                         Execution* transaction1 = new Execution;
@@ -201,6 +243,7 @@ public:
                         transaction1->price = order->Price;
                         transaction1->status = "Fill";
                         transaction1->order_ID = sell_order->Order_ID;
+                        transaction1->time = get_time();
                         report.push_back(transaction1);
                         matched = true;
 
@@ -216,17 +259,19 @@ public:
                         transaction->order_ID = order->Ord_id;
                         sell_order->qty -= order->Quantity;
                         transaction->price = order->Price;
+                        transaction->time = get_time();
                         Buy_Book.erase(Buy_Book.begin());
                         report.push_back(transaction);
 
                         Execution* sell_side = new Execution;
                         sell_side->client_Or_ID = sell_order->id;
-                        sell_side->status = "Pfill";
+                        sell_side->status = "PFill";
                         sell_side->quantity = order->Quantity;
                         sell_side->instrument = order->Instrument;  // Set the instrument correctly
                         sell_side->price = order->Price;
                         sell_side->order_ID = sell_order->Order_ID;
                         sell_side->side = 2;
+                        sell_side->time = get_time();
                         report.push_back(sell_side);
                         matched = true;
 
@@ -243,7 +288,9 @@ public:
                         transaction->price = order->Price;
                         transaction->quantity = sell_order->qty;
                         transaction->order_ID = order->Ord_id; // Set the quantity correctly
-                        Buy_Book[0]->qty -= sell_order->qty;
+                        transaction->time = get_time();
+                        Buy_Book.back()->qty -= sell_order->qty; 
+						//sort(Buy_Book.begin(), Buy_Book.end(), descending);                  ///////////////////Changed/////////
                         report.push_back(transaction);
 
                         Execution* transaction1 = new Execution;
@@ -254,9 +301,22 @@ public:
                         transaction1->price = order->Price;
                         transaction1->client_Or_ID = sell_order->id;
                         transaction1->order_ID = sell_order->Order_ID;
+                        transaction1->time = get_time();
                         report.push_back(transaction1);
-                        Sell_Book.erase(Sell_Book.begin());
+
+
+                        //Sell_Book.erase(Sell_Book.begin());
+
+
                         matched = true;
+                        if (Sell_Book.size() == 1) {
+                            Sell_Book.erase(Sell_Book.begin());
+                        }
+                        else {
+                            loop_needed1 = true;
+                        }
+
+                        //sort(Sell_Book.begin(), Sell_Book.end(), ascending);
                         //break;
 
 
@@ -274,6 +334,7 @@ public:
                 transaction->quantity = order->Quantity; // Set the quantity correctly
                 transaction->status = "New";
                 transaction->side = 1;
+                transaction->time = get_time();
                 report.push_back(transaction);
                 //Buy_Rose.erase(Buy_Rose.begin());
 
@@ -282,8 +343,16 @@ public:
         }
         else {
             bool matched = false;
+            bool loop_needed = false;
+            sort(Buy_Book.begin(), Buy_Book.end(), descending);
+			
 
             for (Order_Book* buy_order : Buy_Book) {
+                if (loop_needed) {
+                    //cout << Buy_Book.front()->id << endl;
+                    Buy_Book.erase(Buy_Book.begin());
+                    loop_needed = false;
+                }
 
                 if (order->Price <= buy_order->price) {
 
@@ -298,10 +367,10 @@ public:
                         sell_side->instrument = order->Instrument;  // Set the instrument correctly
                         sell_side->price = order->Price; // Set the price correctly
                         sell_side->order_ID = order->Ord_id;
+                        sell_side->time = get_time();
                         report.push_back(sell_side);
 
                         Execution* buy_side = new Execution;
-                        //buy_side->order_ID = "ord" + to_string(i);
                         buy_side->side = 1;
                         buy_side->status = "Fill";
                         buy_side->quantity = buy_order->qty;
@@ -309,15 +378,17 @@ public:
                         buy_side->price = order->Price;
                         buy_side->client_Or_ID = buy_order->id;
                         buy_side->order_ID = buy_order->Order_ID;
+                        buy_side->time = get_time();
                         report.push_back(buy_side);
                         matched = 1;
-                        Sell_Book.erase(Sell_Book.begin());
+                        Sell_Book.erase(Sell_Book.end());
                         Buy_Book.erase(Buy_Book.begin());
+                        //sort(Buy_Book.begin(), Buy_Book.end(), descending);
 
                         break;
                     }
                     else if (order->Quantity < buy_order->qty) {
-                        //cout << "helooooooooooooooo" << endl;
+                        
                         Execution* transaction = new Execution;
                         transaction->side = 2;
                         transaction->instrument = order->Instrument;
@@ -327,6 +398,7 @@ public:
                         transaction->client_Or_ID = order->Client_Order_ID;
                         transaction->price = order->Price;
                         transaction->order_ID = order->Ord_id;
+                        transaction->time = get_time();
                         //cout << buy_order->qty << endl;
                         Sell_Book.erase(Sell_Book.begin());
                         report.push_back(transaction);
@@ -339,9 +411,11 @@ public:
                         buy_side->price = order->Price;
                         buy_side->client_Or_ID = buy_order->id;
                         buy_side->order_ID = buy_order->Order_ID;
+                        buy_side->time = get_time();
                         //Buy_Rose.erase(Buy_Rose.begin());
                         report.push_back(buy_side);
                         matched = true;
+                        //sort(Buy_Book.begin(), Buy_Book.end(), descending);
                         break;
                     }
                     else { // buy_order->qty < sell_order->qty
@@ -353,9 +427,12 @@ public:
                         transaction->order_ID = order->Ord_id;
                         transaction->quantity = buy_order->qty; // Set the quantity correctly
                         order->Quantity -= buy_order->qty;
+                        //////////////// changed///////////////////
                         Sell_Book.back()->qty -= buy_order->qty;
+						//sort(Sell_Book.begin(), Sell_Book.end(), ascending);
                         transaction->client_Or_ID = order->Client_Order_ID;
                         transaction->price = order->Price;
+                        transaction->time = get_time();
                         report.push_back(transaction);
 
                         Execution* buy_side = new Execution;
@@ -366,11 +443,15 @@ public:
                         buy_side->price = order->Price;
                         buy_side->client_Or_ID = buy_order->id;
                         buy_side->order_ID = buy_order->Order_ID;
-
-                        Buy_Book.erase(Buy_Book.begin());
+                        buy_side->time = get_time();
                         report.push_back(buy_side);
                         matched = true;
-                        //break;
+                        if (Buy_Book.size() == 1) {
+                            Buy_Book.erase(Buy_Book.begin());
+                        }
+                        else {
+                            loop_needed = true;
+                        }
 
                     }
 
@@ -379,18 +460,18 @@ public:
 
 
             }
-            //cout << matched;
+            
             if (matched == 0) {
-                //cout<< matched;
+                
                 // If no match occurred for the current buy order, set status as "New"
                 transaction->client_Or_ID = order->Client_Order_ID;
-                //cout << transaction->client_Or_ID;
                 transaction->order_ID = order->Ord_id;
                 transaction->instrument = order->Instrument;  // Set the instrument correctly
                 transaction->price = order->Price; // Set the price correctly
                 transaction->quantity = order->Quantity; // Set the quantity correctly
                 transaction->status = "New";
                 transaction->side = 2;
+                transaction->time = get_time();
                 report.push_back(transaction);
             }
         }
@@ -407,18 +488,19 @@ public:
         }
 
         // Write headers
-        file << "Client_Order_ID,Order_ID,Instrument,Side,Price,Quantity,Status,Reason" << endl;
+        file << "Order_ID,Client_Order_ID,Instrument,Side,Price,Quantity,Status,Reason,Transaction_Time" << endl;
 
         // Write transaction details
         for (const Execution* transaction : report) {
-            file << transaction->client_Or_ID << ","
-                << transaction->order_ID << ","
+            file << transaction->order_ID << ","
+                << transaction->client_Or_ID << ","
                 << transaction->instrument << ","
                 << transaction->side << ","
                 << transaction->price << ","
                 << transaction->quantity << ","
                 << transaction->status << ","
-                << transaction->reason << endl;
+                << transaction->reason << ","
+                << transaction->time << endl;
         }
 
         file.close();
@@ -445,8 +527,7 @@ public:
             transaction->instrument = order->Instrument;
             transaction->price = order->Price;
             transaction->quantity = order->Quantity;
-            //cout << order->Client_Order_ID << endl;
-            //bool x= is_Valid_Order(order, transaction);
+            
 
             if (is_Invalid_Order(order, transaction)) {
                 report.push_back(transaction);
@@ -497,11 +578,11 @@ public:
 
 int main() {
     Flower_Trading Trading_app;
-    string File_Path = "C:\\Users\\user\\Desktop\\Gippa\\ex7_1.csv";
+    string File_Path = "C:\\Users\\user\\Desktop\\Gippa\\ex71.csv";
 
     Trading_app.Read_CSV(File_Path);
     Trading_app.Process_Order();
-    string File_Path_write= "C:\\Users\\user\\Desktop\\Gippa\\output.csv";
+    string File_Path_write = "C:\\Users\\user\\Desktop\\Gippa\\output.csv";
     Trading_app.Write_CSV(File_Path_write);
 
     return 0;
