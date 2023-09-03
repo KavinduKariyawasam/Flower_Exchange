@@ -289,7 +289,7 @@ public:
                         transaction->order_ID = order->Ord_id; // Set the quantity correctly
                         transaction->time = get_time();
                         Buy_Book.back()->qty -= sell_order->qty; 
-						sort(Buy_Book.begin(), Buy_Book.end(), descending);                  ///////////////////Changed/////////
+						//sort(Buy_Book.begin(), Buy_Book.end(), descending);                  ///////////////////Changed/////////
                         report.push_back(transaction);
 
                         Execution* transaction1 = new Execution;
@@ -367,7 +367,7 @@ public:
                         buy_side->time = get_time();
                         report.push_back(buy_side);
                         matched = 1;
-                        Sell_Book.erase(Sell_Book.begin());
+                        Sell_Book.pop_back();
                         Buy_Book.erase(Buy_Book.begin());
                         //sort(Buy_Book.begin(), Buy_Book.end(), descending);
                         break;
@@ -385,7 +385,7 @@ public:
                         transaction->order_ID = order->Ord_id;
                         transaction->time = get_time();
                         //cout << buy_order->qty << endl;
-                        Sell_Book.erase(Sell_Book.begin());
+                        Sell_Book.pop_back();
                         report.push_back(transaction);
 
                         Execution* buy_side = new Execution;
@@ -545,11 +545,11 @@ public:
 
 int main() {
     Flower_Trading Trading_app;
-    string File_Path = "Bigdataset.csv";
+    string File_Path ="C:\\Users\\user\\Desktop\\Gippa\\Bigdataset.csv";;
 
     Trading_app.Read_CSV(File_Path);
     Trading_app.Process_Order();
-    string File_Path_write = "output.csv";
+    string File_Path_write = "C:\\Users\\user\\Desktop\\Gippa\\output.csv";;
     Trading_app.Write_CSV(File_Path_write);
 
     return 0;
