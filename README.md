@@ -1,6 +1,5 @@
 # Flower Trading Application
 
-**Project Duration:** August 2023 - September 2023  
 **Technology Stack:** C++ (Object-Oriented Programming)  
 
 **Team Members:**  
