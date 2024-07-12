@@ -12,9 +12,9 @@ A group project that focused on developing a robust and efficient flower trading
 
 ## Features
 
-- Trading of various flowers
-- User authentication and management
-- Order processing and management
+- Manage order books
+- Execute trades
+- Generate execution reports for a flower trading system
 
 ## Implementation
 
